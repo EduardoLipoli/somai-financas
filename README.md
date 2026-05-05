@@ -27,12 +27,6 @@
     npm run dev
     ```
 
-## 👤 Autor
-
-- **Eduardo Lipoli da Silva** – [Seu GitHub](https://github.com/seu-usuario)Um `README.md` bem estruturado é essencial para o portfólio da **Agência Vizyon** e para destacar suas habilidades como desenvolvedor Full Stack. Abaixo, preparei um modelo completo baseado em toda a estrutura e funcionalidades que implementamos no **Somaí Finanças**:[cite: 1]
-
----
-
 # 🚀 Somaí Finanças
 
 O **Somaí Finanças** (anteriormente Orbe Finance) é um painel financeiro inteligente desenvolvido para oferecer controle absoluto sobre receitas e despesas.[cite: 1, 4] A aplicação permite gerenciar transações avulsas, parceladas ou fixas, oferecendo uma visão clara do fluxo de caixa através de gráficos e resumos estratégicos.[cite: 1, 4]
