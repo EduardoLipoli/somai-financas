@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Transições da Sidebar */
+#formSidebar {
+  transition: width 0.3s ease-in-out, visibility 0.3s ease-in-out; /*[cite: 1, 2] */
+  z-index: 20; /*[cite: 1, 2] */
+}
+
+#overlay, #deleteModal {
+  backdrop-filter: blur(5px); /*[cite: 1] */
+  z-index: 10; /*[cite: 1] */
+}
+
+/* Tabelas */
+table td {
+  cursor: pointer; /*[cite: 1] */
+  user-select: none; /*[cite: 1] */
+}
+table tr:hover {
+  background-color: rgba(0, 0, 0, 0.1); /*[cite: 1] */
+}
+
+/* Animação do Loading */
+@keyframes loader-circle {
+  0% { transform: rotate(0); } /*[cite: 1, 2] */
+  100% { transform: rotate(360deg); } /*[cite: 1, 2] */
+}
+
+/* Estilos do Dashboard */
+.glass-card {
+  background: rgba(39, 39, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.card-receita { background: linear-gradient(135deg, rgba(22, 163, 74, 0.25) 0%, rgba(39, 39, 42, 0.7) 100%); }
+.card-despesa { background: linear-gradient(135deg, rgba(220, 38, 38, 0.25) 0%, rgba(39, 39, 42, 0.7) 100%); }
+.card-sobra { background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(39, 39, 42, 0.7) 100%); }
+.card-investimento { background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(39, 39, 42, 0.7) 100%); }
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Animação do Círculo de Metas */
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.5s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
