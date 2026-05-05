@@ -1,16 +1,78 @@
-# React + Vite
+## 🚀 Como Executar o Projeto
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+1.  **Clone o repositório:**
 
-Currently, two official plugins are available:
+    ```bash
+    git clone [https://github.com/seu-usuario/somai-financas.git](https://github.com/seu-usuario/somai-financas.git)
+    ```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+2.  **Instale as dependências:**
 
-## React Compiler
+    ```bash
+    npm install
+    ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+3.  **Configure o Firebase:**
+    Crie um arquivo `.env` na raiz do projeto com suas credenciais:
 
-## Expanding the ESLint configuration
+    ```env
+    VITE_FIREBASE_API_KEY=sua_chave
+    VITE_FIREBASE_AUTH_DOMAIN=seu_dominio
+    VITE_FIREBASE_PROJECT_ID=seu_id
+    # ... demais chaves
+    ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+4.  **Inicie o servidor de desenvolvimento:**
+    ```bash
+    npm run dev
+    ```
+
+## 👤 Autor
+
+- **Eduardo Lipoli da Silva** – [Seu GitHub](https://github.com/seu-usuario)Um `README.md` bem estruturado é essencial para o portfólio da **Agência Vizyon** e para destacar suas habilidades como desenvolvedor Full Stack. Abaixo, preparei um modelo completo baseado em toda a estrutura e funcionalidades que implementamos no **Somaí Finanças**:[cite: 1]
+
+---
+
+# 🚀 Somaí Finanças
+
+O **Somaí Finanças** (anteriormente Orbe Finance) é um painel financeiro inteligente desenvolvido para oferecer controle absoluto sobre receitas e despesas.[cite: 1, 4] A aplicação permite gerenciar transações avulsas, parceladas ou fixas, oferecendo uma visão clara do fluxo de caixa através de gráficos e resumos estratégicos.[cite: 1, 4]
+
+## 🛠️ Tecnologias Utilizadas
+
+- **React** (Vite): Framework para construção da interface.
+- **Firebase**: Autenticação de usuários e banco de dados NoSQL (Cloud Firestore).[cite: 1, 2, 4]
+- **Tailwind CSS**: Estilização responsiva e moderna.[cite: 1, 3, 5]
+- **JavaScript (ES6+)**: Lógica de expansão de parcelas e cálculos financeiros.[cite: 1, 4]
+- **FontAwesome & Bootstrap Icons**: Biblioteca de ícones.[cite: 1, 3, 5]
+
+## ✨ Principais Funcionalidades
+
+- **Dashboard Inteligente**: Resumo de receitas, despesas e sobra do mês, com filtros por período ou visão anual.[cite: 2, 4]
+- **Gráfico de Evolução**: Visualização dos últimos 6 meses com barras customizadas que detalham gastos por categoria.[cite: 1]
+- **Gestão de Transações**:
+  - Criação de despesas/receitas fixas ou parceladas.[cite: 1, 4]
+  - Sistema de _Overrides_: Possibilidade de editar o valor ou status de pagamento de apenas um mês específico sem afetar o histórico ou parcelas futuras.[cite: 1]
+  - Histórico de alterações e notas personalizadas por transação.[cite: 1]
+- **Sistema de Alertas**:
+  - Pop-up de notificações para dívidas já atrasadas.[cite: 1]
+  - Avisos de vencimento próximo (próximos 5 dias).[cite: 1]
+- **Navegação Responsiva**: Sidebar adaptável com menu hambúrguer para dispositivos móveis e expansão por _hover_ no desktop.[cite: 5]
+- **Exportação de Dados**: Geração de relatórios em formato CSV.[cite: 1]
+
+## 📂 Estrutura do Projeto
+
+```text
+somai-financas/
+├── public/              # Ativos estáticos (ícones, favicon)
+├── src/
+│   ├── assets/          # Imagens e recursos globais
+│   ├── components/      # Componentes reutilizáveis (Sidebar, Form, Gráficos)
+│   ├── firebase/        # Configuração e inicialização do Firebase
+│   ├── pages/           # Telas principais (Dashboard, Despesas, Metas, etc.)
+│   ├── utils/           # Funções auxiliares de formatação de moeda e datas
+│   ├── App.jsx          # Gerenciamento de rotas
+│   └── main.jsx         # Ponto de entrada do React
+├── .gitignore           # Arquivos ignorados pelo Git
+├── tailwind.config.js   # Configurações do Tailwind
+└── vite.config.js       # Configurações de build do Vite
+```
