@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import { auth } from "../firebase/config";
 import Sidebar from "../components/Sidebar";
@@ -100,6 +101,7 @@ function expandMasterForMonth(master, year, month) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Receitas() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
   // ── Dados ──────────────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ export default function Receitas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDatepay, setFilterDatepay] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterStatus, setFilterStatus] = useState(""); // Adicionado para o filtro Mobile funcionar
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -122,6 +125,7 @@ export default function Receitas() {
   // ── UI geral ───────────────────────────────────────────────────────────────
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVirtualRow, setEditingVirtualRow] = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null); // Adicionado para os cards Mobile
 
   // ── Modal de escopo de edição ──────────────────────────────────────────────
   const [showScopeModal, setShowScopeModal] = useState(false);
@@ -195,7 +199,10 @@ export default function Receitas() {
         filterDatepay === "" || t.datepay === filterDatepay;
       const isMatchCategory =
         filterCategory === "" || t.category === filterCategory;
-      return isMatchSearch && isMatchDatepay && isMatchCategory;
+      const isMatchStatus = 
+        !filterStatus || (filterStatus === "paid" ? t.isPaid : !t.isPaid); // Lógica Status (Adicionada p/ Mobile)
+      
+      return isMatchSearch && isMatchDatepay && isMatchCategory && isMatchStatus;
     });
 
     if (sortConfig.key) {
@@ -223,6 +230,7 @@ export default function Receitas() {
     searchTerm,
     filterDatepay,
     filterCategory,
+    filterStatus,
     sortConfig,
     categories,
   ]);
@@ -246,9 +254,11 @@ export default function Receitas() {
         acc.qtd15++;
       }
       acc.total += t.amount;
+      if (t.isPaid) acc.recebido += t.amount;
+      else acc.aReceber += t.amount;
       return acc;
     },
-    { dia01: 0, dia15: 0, qtd01: 0, qtd15: 0, total: 0 },
+    { dia01: 0, dia15: 0, qtd01: 0, qtd15: 0, total: 0, recebido: 0, aReceber: 0 },
   );
 
   // ── 5. Ações ───────────────────────────────────────────────────────────────
@@ -368,11 +378,12 @@ export default function Receitas() {
 
     setEditingVirtualRow(null);
     setEditScope(null);
+    setIsFormOpen(false); // Fecha o form de forma segura
     await loadTransactions(user.uid);
   };
 
   const togglePaid = async (tx, e) => {
-    if (e.target.closest("button")) return;
+    if (e && e.target.closest("button")) return; // Previne clique duplo se clicar em botões aninhados
     const db = firebase.firestore();
     const master = masterTransactions.find((m) => m.id === tx.id);
     const existingOverride = master?.overrides?.[tx.monthKey] ?? {};
@@ -572,9 +583,9 @@ export default function Receitas() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-zinc-900 text-zinc-200 h-screen grid grid-cols-[auto,1fr] font-['Inter'] relative overflow-hidden">
+    <div className="bg-[#121212] lg:bg-zinc-900 text-zinc-200 h-screen flex flex-col lg:grid lg:grid-cols-[auto,1fr] font-['Inter'] relative overflow-hidden">
       {isLoading && <Loading />}
-      <Sidebar />
+      <div className="hidden lg:block"><Sidebar /></div>
 
       {/* ── Modal de escopo de edição ── */}
       {showScopeModal && pendingEditRow && (
@@ -753,8 +764,9 @@ export default function Receitas() {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* ── Cabeçalho ── */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
+        
+        {/* ── CABEÇALHO DESKTOP ── */}
+        <header className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-white/10 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <i className="bi bi-graph-up text-green-500 text-2xl"></i>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
@@ -776,348 +788,541 @@ export default function Receitas() {
           </Tooltip>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 custom-scroll">
-          {/* ── Cartões de resumo ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/80 p-5 rounded-2xl shadow-lg border border-white/5 hover:border-green-500/30 transition-all duration-300 group">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <i className="bi bi-calendar-day text-green-400 text-xl"></i>
-                  <h3 className="font-semibold">Receitas do Dia 01</h3>
+        {/* ── CABEÇALHO MOBILE (Estilo App Somaí) ── */}
+        <header className="lg:hidden flex flex-col px-5 pt-10 pb-4 bg-[#121212]">
+          <h1 className="text-[26px] font-bold text-white mb-6">Receitas</h1>
+          
+          {/* Card Verde */}
+          <div className="bg-gradient-to-br from-[#22C55E] to-[#15803D] rounded-[24px] p-6 shadow-xl mb-6 border border-white/10 relative overflow-hidden">
+             <div className="flex items-center gap-2 mb-2 text-white/80">
+                <div className="bg-white/20 p-1.5 rounded-lg"><i className="bi bi-arrow-up text-white text-xs"></i></div>
+                <span className="text-xs font-bold uppercase tracking-wider">Receitas</span>
+             </div>
+             <p className="text-[34px] font-black text-white mb-4">{formatarMoeda(resumo.total)}</p>
+             <div className="h-[1px] bg-white/20 mb-4" />
+             <div className="flex justify-between">
+                <div>
+                  <p className="text-[11px] text-white/70 font-medium">Receitas a receber</p>
+                  <p className="text-sm font-bold text-white">{formatarMoeda(resumo.aReceber)}</p>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-300">
-                  {resumo.qtd01} entrada(s)
-                </span>
-              </div>
-              <p className="text-3xl font-bold mt-3 text-green-400 group-hover:text-green-300 transition-colors">
-                {formatarMoeda(resumo.dia01)}
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/80 p-5 rounded-2xl shadow-lg border border-white/5 hover:border-green-500/30 transition-all duration-300 group">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <i className="bi bi-calendar-week text-green-400 text-xl"></i>
-                  <h3 className="font-semibold">Receitas do Dia 15</h3>
+                <div className="text-right">
+                  <p className="text-[11px] text-white/70 font-medium">Receitas recebidas</p>
+                  <p className="text-sm font-bold text-white">{formatarMoeda(resumo.recebido)}</p>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-300">
-                  {resumo.qtd15} entrada(s)
-                </span>
-              </div>
-              <p className="text-3xl font-bold mt-3 text-green-400 group-hover:text-green-300 transition-colors">
-                {formatarMoeda(resumo.dia15)}
-              </p>
-            </div>
+             </div>
           </div>
 
-          {/* ── Navegação de mês ── */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-800/80 backdrop-blur-sm p-3 rounded-xl shadow-md mb-6 border border-white/5">
-            <Tooltip text="Mês anterior">
-              <button
-                onClick={prevMonth}
-                className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
-              >
-                <i className="bi bi-chevron-left text-xl"></i>
-              </button>
-            </Tooltip>
+          {/* Pager de Mês Mobile */}
+          <div className="bg-[#1C1C1E] rounded-[20px] p-4 flex justify-between items-center mb-6 border border-white/5 shadow-md">
+             <button onClick={prevMonth} className="bg-[#2C2C2E] p-2 rounded-xl text-white">
+                <i className="bi bi-chevron-left"></i>
+             </button>
+             <div className="text-center" onClick={() => setShowCalendar(!showCalendar)}>
+                <p className="text-sm font-bold text-white flex items-center justify-center gap-2">
+                  {mesesNome[currentMonth]} {currentYear} <i className="bi bi-calendar3 text-[#22C55E] text-[10px]"></i>
+                </p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">{processedTransactions.length} transações</p>
+             </div>
+             <button onClick={nextMonth} className="bg-[#2C2C2E] p-2 rounded-xl text-white">
+                <i className="bi bi-chevron-right"></i>
+             </button>
+          </div>
 
-            <div className="relative">
-              <button
-                onClick={() => setShowCalendar(!showCalendar)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-700/50 hover:bg-zinc-700 transition-colors font-semibold"
-              >
-                <i className="bi bi-calendar3 text-green-400"></i>
-                <span>
-                  {mesesNome[currentMonth]} {currentYear}
-                </span>
-                <i
-                  className={`bi bi-chevron-down transition-transform duration-200 ${showCalendar ? "rotate-180" : ""}`}
-                ></i>
-              </button>
+          {/* Calendário Overlay Mobile */}
+          {showCalendar && (
+            <div className="absolute top-[310px] left-5 right-5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <button onClick={() => setCurrentYear((y) => y - 1)} className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"><i className="bi bi-chevron-left"></i></button>
+                <span className="text-lg font-bold">{currentYear}</span>
+                <button onClick={() => setCurrentYear((y) => y + 1)} className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"><i className="bi bi-chevron-right"></i></button>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {mesesNome.map((mes, index) => (
+                  <button key={index} onClick={() => { setCurrentMonth(index); setShowCalendar(false); }} className={`p-2 rounded-lg text-sm transition-all ${currentMonth === index ? "bg-[#22C55E] text-white shadow-md" : "bg-zinc-700 hover:bg-zinc-600"}`}>
+                    {mes.substring(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-              {showCalendar && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50 animate-fade-in">
-                  <div className="flex justify-between items-center mb-4">
-                    <button
-                      onClick={() => setCurrentYear((y) => y - 1)}
-                      className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"
-                    >
-                      <i className="bi bi-chevron-left"></i>
-                    </button>
-                    <span className="text-lg font-bold">{currentYear}</span>
-                    <button
-                      onClick={() => setCurrentYear((y) => y + 1)}
-                      className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"
-                    >
-                      <i className="bi bi-chevron-right"></i>
-                    </button>
+          {/* Busca e Filtros Mobile */}
+          <div className="flex gap-3 mb-4">
+            <div className="relative flex-1">
+              <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm"></i>
+              <input type="text" placeholder="Buscar receitas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#1C1C1E] border border-white/5 rounded-2xl py-3.5 pl-11 pr-4 text-sm text-white focus:ring-1 focus:ring-[#22C55E] outline-none" />
+            </div>
+            <button onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)} className={`p-3.5 rounded-2xl border ${isFilterMenuOpen ? 'bg-[#22C55E] border-[#22C55E] text-white' : 'bg-[#1C1C1E] border-white/5 text-zinc-400'}`}>
+              <i className="bi bi-filter-right text-xl"></i>
+            </button>
+          </div>
+
+          {isFilterMenuOpen && (
+            <div className="flex gap-2 mb-4 animate-fade-in flex-wrap">
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="flex-1 min-w-[100px] bg-[#1C1C1E] border border-white/5 text-white rounded-xl p-2 text-xs">
+                <option value="">Status</option>
+                <option value="paid">Recebidas</option>
+                <option value="unpaid">Pendentes</option>
+              </select>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="flex-1 min-w-[100px] bg-[#1C1C1E] border border-white/5 text-white rounded-xl p-2 text-xs">
+                <option value="">Categoria</option>
+                {Object.entries(categories).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+              <select value={filterDatepay} onChange={(e) => setFilterDatepay(e.target.value)} className="flex-1 min-w-[100px] bg-[#1C1C1E] border border-white/5 text-white rounded-xl p-2 text-xs">
+                <option value="">Dia Pag.</option>
+                <option value="01">Dia 01</option>
+                <option value="15">Dia 15</option>
+              </select>
+            </div>
+          )}
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-0 lg:p-6 custom-scroll pb-[100px] lg:pb-0">
+          
+          {/* ── CONTEÚDO DESKTOP ── */}
+          <div className="hidden lg:block p-4 md:p-0">
+            {/* ── Cartões de resumo ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/80 p-5 rounded-2xl shadow-lg border border-white/5 hover:border-green-500/30 transition-all duration-300 group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="bi bi-calendar-day text-green-400 text-xl"></i>
+                    <h3 className="font-semibold">Receitas do Dia 01</h3>
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {mesesNome.map((mes, index) => (
+                  <span className="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-300">
+                    {resumo.qtd01} entrada(s)
+                  </span>
+                </div>
+                <p className="text-3xl font-bold mt-3 text-green-400 group-hover:text-green-300 transition-colors">
+                  {formatarMoeda(resumo.dia01)}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-zinc-800 to-zinc-800/80 p-5 rounded-2xl shadow-lg border border-white/5 hover:border-green-500/30 transition-all duration-300 group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="bi bi-calendar-week text-green-400 text-xl"></i>
+                    <h3 className="font-semibold">Receitas do Dia 15</h3>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-300">
+                    {resumo.qtd15} entrada(s)
+                  </span>
+                </div>
+                <p className="text-3xl font-bold mt-3 text-green-400 group-hover:text-green-300 transition-colors">
+                  {formatarMoeda(resumo.dia15)}
+                </p>
+              </div>
+            </div>
+
+            {/* ── Navegação de mês ── */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-800/80 backdrop-blur-sm p-3 rounded-xl shadow-md mb-6 border border-white/5">
+              <Tooltip text="Mês anterior">
+                <button
+                  onClick={prevMonth}
+                  className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
+                >
+                  <i className="bi bi-chevron-left text-xl"></i>
+                </button>
+              </Tooltip>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-700/50 hover:bg-zinc-700 transition-colors font-semibold"
+                >
+                  <i className="bi bi-calendar3 text-green-400"></i>
+                  <span>
+                    {mesesNome[currentMonth]} {currentYear}
+                  </span>
+                  <i
+                    className={`bi bi-chevron-down transition-transform duration-200 ${showCalendar ? "rotate-180" : ""}`}
+                  ></i>
+                </button>
+
+                {showCalendar && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50 animate-fade-in">
+                    <div className="flex justify-between items-center mb-4">
                       <button
-                        key={index}
-                        onClick={() => {
-                          setCurrentMonth(index);
-                          setShowCalendar(false);
-                        }}
-                        className={`p-2 rounded-lg text-sm transition-all ${currentMonth === index ? "bg-green-600 text-white shadow-md" : "bg-zinc-700 hover:bg-zinc-600"}`}
+                        onClick={() => setCurrentYear((y) => y - 1)}
+                        className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"
                       >
-                        {mes.substring(0, 3)}
+                        <i className="bi bi-chevron-left"></i>
                       </button>
-                    ))}
+                      <span className="text-lg font-bold">{currentYear}</span>
+                      <button
+                        onClick={() => setCurrentYear((y) => y + 1)}
+                        className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"
+                      >
+                        <i className="bi bi-chevron-right"></i>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {mesesNome.map((mes, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setCurrentMonth(index);
+                            setShowCalendar(false);
+                          }}
+                          className={`p-2 rounded-lg text-sm transition-all ${currentMonth === index ? "bg-green-600 text-white shadow-md" : "bg-zinc-700 hover:bg-zinc-600"}`}
+                        >
+                          {mes.substring(0, 3)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <Tooltip text="Voltar ao mês atual">
-                <button
-                  onClick={goToCurrentMonth}
-                  className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
-                >
-                  <i className="bi bi-calendar-check text-xl"></i>
-                </button>
-              </Tooltip>
-              <Tooltip text="Próximo mês">
-                <button
-                  onClick={nextMonth}
-                  className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
-                >
-                  <i className="bi bi-chevron-right text-xl"></i>
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* ── Tabela ── */}
-          <div className="bg-zinc-800/30 rounded-xl shadow-xl border border-white/5 overflow-hidden">
-            <div className="bg-zinc-800/50 px-4 md:px-6 py-4 border-b border-white/10">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <i className="bi bi-table text-green-400"></i>
-                  Todas as transações
-                </h2>
-                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                      className="flex items-center justify-between gap-2 px-4 py-2 bg-zinc-700/70 rounded-xl border border-zinc-600 hover:bg-zinc-700 transition-all"
-                    >
-                      <i className="bi bi-funnel"></i>
-                      <span className="text-sm font-medium">Filtros</span>
-                      <i
-                        className={`bi bi-chevron-down transition-transform duration-200 ${isFilterMenuOpen ? "rotate-180" : ""}`}
-                      ></i>
-                    </button>
-
-                    {isFilterMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-64 bg-zinc-800 rounded-xl shadow-2xl border border-zinc-700 z-30 animate-fade-in">
-                        <div className="p-3 space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-1">
-                              Categoria
-                            </label>
-                            <select
-                              value={filterCategory}
-                              onChange={(e) =>
-                                setFilterCategory(e.target.value)
-                              }
-                              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                            >
-                              <option value="">Todas</option>
-                              {Object.entries(categories).map(
-                                ([id, catName]) => (
-                                  <option key={id} value={id}>
-                                    {catName}
-                                  </option>
-                                ),
-                              )}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-1">
-                              Dia de pagamento
-                            </label>
-                            <select
-                              value={filterDatepay}
-                              onChange={(e) => setFilterDatepay(e.target.value)}
-                              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                            >
-                              <option value="">Todos</option>
-                              <option value="01">Dia 01</option>
-                              <option value="15">Dia 15</option>
-                            </select>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setFilterCategory("");
-                              setFilterDatepay("");
-                              setSearchTerm("");
-                            }}
-                            className="w-full mt-2 text-center text-sm text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            Limpar filtros
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative flex-1 lg:w-64">
-                    <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                    <input
-                      type="text"
-                      placeholder="Buscar..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-700/50 border border-zinc-600 focus:ring-2 focus:ring-green-500 placeholder:text-zinc-500 text-sm transition-all"
-                    />
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <Tooltip text="Voltar ao mês atual">
+                  <button
+                    onClick={goToCurrentMonth}
+                    className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
+                  >
+                    <i className="bi bi-calendar-check text-xl"></i>
+                  </button>
+                </Tooltip>
+                <Tooltip text="Próximo mês">
+                  <button
+                    onClick={nextMonth}
+                    className="p-2 rounded-lg hover:bg-zinc-700 transition-colors text-green-400"
+                  >
+                    <i className="bi bi-chevron-right text-xl"></i>
+                  </button>
+                </Tooltip>
               </div>
             </div>
 
-            <div className="overflow-x-auto custom-scroll">
-              <table className="min-w-[800px] w-full">
-                <thead className="bg-zinc-800/80 text-xs uppercase tracking-wider">
-                  <tr>
-                    <SortableTH
-                      label="Nome"
-                      sortKey="name"
-                      tooltip="Ordenar por nome"
-                    />
-                    <th className="py-3 px-4 text-left font-semibold text-xs">
-                      Tipo
-                    </th>
-                    <SortableTH
-                      label="Categoria"
-                      sortKey="category"
-                      tooltip="Ordenar por categoria"
-                    />
-                    <SortableTH
-                      label="Vencimento"
-                      sortKey="dueDate"
-                      tooltip="Ordenar por data"
-                    />
-                    <SortableTH
-                      label="Dia Pag."
-                      sortKey="datepay"
-                      tooltip="Ordenar por dia de pagamento"
-                    />
-                    <SortableTH
-                      label="Valor"
-                      sortKey="amount"
-                      tooltip="Ordenar por valor"
-                    />
-                    <th className="py-3 px-4 text-left font-semibold text-xs">
-                      Parcelas
-                    </th>
-                    <th className="py-3 px-4 text-center font-semibold text-xs">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-700/50">
-                  {processedTransactions.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="8"
-                        className="text-center py-12 text-zinc-500"
+            {/* ── Tabela ── */}
+            <div className="bg-zinc-800/30 rounded-xl shadow-xl border border-white/5 overflow-hidden">
+              <div className="bg-zinc-800/50 px-4 md:px-6 py-4 border-b border-white/10">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <i className="bi bi-table text-green-400"></i>
+                    Todas as transações
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                        className="flex items-center justify-between gap-2 px-4 py-2 bg-zinc-700/70 rounded-xl border border-zinc-600 hover:bg-zinc-700 transition-all"
                       >
-                        <i className="bi bi-inbox text-4xl block mb-2"></i>
-                        Nenhuma receita encontrada para este período.
-                      </td>
-                    </tr>
-                  ) : (
-                    processedTransactions.map((tx) => (
-                      <tr
-                        key={`${tx.id}-${tx.monthKey}`}
-                        onClick={(e) => togglePaid(tx, e)}
-                        className={`cursor-pointer transition-all duration-150 hover:bg-zinc-700/30 ${tx.isPaid ? "bg-black/10 opacity-70" : ""}`}
-                      >
-                        <td className="py-3 px-4 font-medium">
-                          <Tooltip
-                            text={
-                              tx.isPaid
-                                ? "Desmarcar como recebido"
-                                : "Marcar como recebido"
-                            }
-                          >
-                            <span className="cursor-pointer">{tx.name}</span>
-                          </Tooltip>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-green-900/30 text-green-400">
-                            Ganho
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          {categories[tx.category] || "—"}
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          {tx.dueDate.toLocaleDateString("pt-BR")}
-                        </td>
-                        <td className="py-3 px-4 text-sm">Dia {tx.datepay}</td>
-                        <td className="py-3 px-4 font-medium text-green-300">
-                          {formatarMoeda(tx.amount)}
-                          {tx.amount !== tx.baseAmount && (
-                            <Tooltip
-                              text={`Valor base: ${formatarMoeda(tx.baseAmount)}`}
+                        <i className="bi bi-funnel"></i>
+                        <span className="text-sm font-medium">Filtros</span>
+                        <i
+                          className={`bi bi-chevron-down transition-transform duration-200 ${isFilterMenuOpen ? "rotate-180" : ""}`}
+                        ></i>
+                      </button>
+
+                      {isFilterMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-64 bg-zinc-800 rounded-xl shadow-2xl border border-zinc-700 z-30 animate-fade-in">
+                          <div className="p-3 space-y-3">
+                            <div>
+                              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+                                Status
+                              </label>
+                              <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">Todos</option>
+                                <option value="paid">Recebidas</option>
+                                <option value="unpaid">Pendentes</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+                                Categoria
+                              </label>
+                              <select
+                                value={filterCategory}
+                                onChange={(e) =>
+                                  setFilterCategory(e.target.value)
+                                }
+                                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">Todas</option>
+                                {Object.entries(categories).map(
+                                  ([id, catName]) => (
+                                    <option key={id} value={id}>
+                                      {catName}
+                                    </option>
+                                  ),
+                                )}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+                                Dia de pagamento
+                              </label>
+                              <select
+                                value={filterDatepay}
+                                onChange={(e) => setFilterDatepay(e.target.value)}
+                                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="">Todos</option>
+                                <option value="01">Dia 01</option>
+                                <option value="15">Dia 15</option>
+                              </select>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setFilterCategory("");
+                                setFilterDatepay("");
+                                setFilterStatus("");
+                                setSearchTerm("");
+                              }}
+                              className="w-full mt-2 text-center text-sm text-green-400 hover:text-green-300 transition-colors"
                             >
-                              <i className="bi bi-pencil text-zinc-500 text-xs ml-1 cursor-default"></i>
-                            </Tooltip>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          {getInstallmentLabel(tx)}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex justify-center gap-3">
-                            <Tooltip text="Editar">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditClick(tx);
-                                }}
-                                className="text-zinc-400 hover:text-white transition-colors"
-                              >
-                                <i className="bi bi-pencil-square"></i>
-                              </button>
-                            </Tooltip>
-                            <Tooltip text="Excluir">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteTransaction(tx);
-                                }}
-                                className="text-red-500 hover:text-red-400 transition-colors"
-                              >
-                                <i className="bi bi-trash3"></i>
-                              </button>
-                            </Tooltip>
+                              Limpar filtros
+                            </button>
                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative flex-1 lg:w-64">
+                      <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-700/50 border border-zinc-600 focus:ring-2 focus:ring-green-500 placeholder:text-zinc-500 text-sm transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto custom-scroll">
+                <table className="min-w-[800px] w-full">
+                  <thead className="bg-zinc-800/80 text-xs uppercase tracking-wider">
+                    <tr>
+                      <SortableTH
+                        label="Nome"
+                        sortKey="name"
+                        tooltip="Ordenar por nome"
+                      />
+                      <th className="py-3 px-4 text-left font-semibold text-xs">
+                        Tipo
+                      </th>
+                      <SortableTH
+                        label="Categoria"
+                        sortKey="category"
+                        tooltip="Ordenar por categoria"
+                      />
+                      <SortableTH
+                        label="Vencimento"
+                        sortKey="dueDate"
+                        tooltip="Ordenar por data"
+                      />
+                      <SortableTH
+                        label="Dia Pag."
+                        sortKey="datepay"
+                        tooltip="Ordenar por dia de pagamento"
+                      />
+                      <SortableTH
+                        label="Valor"
+                        sortKey="amount"
+                        tooltip="Ordenar por valor"
+                      />
+                      <th className="py-3 px-4 text-left font-semibold text-xs">
+                        Parcelas
+                      </th>
+                      <th className="py-3 px-4 text-center font-semibold text-xs">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-700/50">
+                    {processedTransactions.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="8"
+                          className="text-center py-12 text-zinc-500"
+                        >
+                          <i className="bi bi-inbox text-4xl block mb-2"></i>
+                          Nenhuma receita encontrada para este período.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-                <tfoot className="bg-zinc-800/80 border-t border-zinc-700 font-medium text-sm">
-                  <tr>
-                    <td className="py-3 px-4">Total</td>
-                    <td colSpan="4"></td>
-                    <td className="py-3 px-4 font-bold text-green-400">
-                      {formatarMoeda(resumo.total)}
-                    </td>
-                    <td colSpan="2" className="py-3 px-4">
-                      {processedTransactions.length} transações
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+                    ) : (
+                      processedTransactions.map((tx) => (
+                        <tr
+                          key={`${tx.id}-${tx.monthKey}`}
+                          onClick={(e) => togglePaid(tx, e)}
+                          className={`cursor-pointer transition-all duration-150 hover:bg-zinc-700/30 ${tx.isPaid ? "bg-black/10 opacity-70" : ""}`}
+                        >
+                          <td className="py-3 px-4 font-medium">
+                            <Tooltip
+                              text={
+                                tx.isPaid
+                                  ? "Desmarcar como recebido"
+                                  : "Marcar como recebido"
+                              }
+                            >
+                              <span className="cursor-pointer">{tx.name}</span>
+                            </Tooltip>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-green-900/30 text-green-400">
+                              Ganho
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {categories[tx.category] || "—"}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {tx.dueDate.toLocaleDateString("pt-BR")}
+                          </td>
+                          <td className="py-3 px-4 text-sm">Dia {tx.datepay}</td>
+                          <td className="py-3 px-4 font-medium text-green-300">
+                            {formatarMoeda(tx.amount)}
+                            {tx.amount !== tx.baseAmount && (
+                              <Tooltip
+                                text={`Valor base: ${formatarMoeda(tx.baseAmount)}`}
+                              >
+                                <i className="bi bi-pencil text-zinc-500 text-xs ml-1 cursor-default"></i>
+                              </Tooltip>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {getInstallmentLabel(tx)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex justify-center gap-3">
+                              <Tooltip text="Editar">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditClick(tx);
+                                  }}
+                                  className="text-zinc-400 hover:text-white transition-colors"
+                                >
+                                  <i className="bi bi-pencil-square"></i>
+                                </button>
+                              </Tooltip>
+                              <Tooltip text="Excluir">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTransaction(tx);
+                                  }}
+                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                >
+                                  <i className="bi bi-trash3"></i>
+                                </button>
+                              </Tooltip>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot className="bg-zinc-800/80 border-t border-zinc-700 font-medium text-sm">
+                    <tr>
+                      <td className="py-3 px-4">Total</td>
+                      <td colSpan="4"></td>
+                      <td className="py-3 px-4 font-bold text-green-400">
+                        {formatarMoeda(resumo.total)}
+                      </td>
+                      <td colSpan="2" className="py-3 px-4">
+                        {processedTransactions.length} transações
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
+          </div>
+
+          {/* ── CONTEÚDO MOBILE (Listagem estilo App Flutter) ── */}
+          <div className="lg:hidden px-5 space-y-3 mt-4 mb-6">
+             {processedTransactions.map(tx => (
+               <div key={`${tx.id}-${tx.monthKey}`} onClick={() => setExpandedCardId(expandedCardId === tx.id ? null : tx.id)}
+                 className="bg-[#1C1C1E] border border-white/5 rounded-[24px] p-5 shadow-sm transition-all active:scale-[0.98]">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-[#22C55E]/10 p-3 rounded-2xl">
+                        <i className="bi bi-cash-stack text-[#22C55E] text-lg"></i>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-[15px]">{tx.name}</h4>
+                        <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-tighter">{categories[tx.category]} • {tx.isFixed ? 'Recorrente' : 'Avulsa'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[16px] font-black text-[#22C55E]">{formatarMoeda(tx.amount)}</p>
+                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${tx.isPaid ? 'bg-green-500/10 text-green-500' : 'bg-zinc-700 text-zinc-400'}`}>
+                          {tx.isPaid ? 'Recebido' : 'Pendente'}
+                       </span>
+                    </div>
+                  </div>
+
+                  {expandedCardId === tx.id && (
+                    <div className="mt-4 pt-4 border-t border-white/5 animate-slide-down">
+                       <div className="flex justify-between mb-4 text-[11px] text-zinc-400 uppercase font-bold">
+                          <div>
+                            <p>Data Limite</p>
+                            <p className="text-white">{tx.dueDate.toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <div className="text-right">
+                            <p>Lançamento</p>
+                            <p className="text-white">Dia {tx.datepay}</p>
+                          </div>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                          <button onClick={(e) => {e.stopPropagation(); togglePaid(tx, e);}} className="flex-1 py-3 bg-[#22C55E]/10 text-[#22C55E] rounded-xl text-xs font-bold border border-[#22C55E]/20 uppercase">
+                             {tx.isPaid ? 'Marcar Pendente' : 'Marcar Recebido'}
+                          </button>
+                          <div className="flex gap-2">
+                            <button onClick={(e) => {e.stopPropagation(); handleEditClick(tx);}} className="p-3 bg-zinc-800 text-white rounded-xl"><i className="bi bi-pencil"></i></button>
+                            <button onClick={(e) => {e.stopPropagation(); deleteTransaction(tx);}} className="p-3 bg-red-900/20 text-red-500 rounded-xl"><i className="bi bi-trash3"></i></button>
+                          </div>
+                       </div>
+                    </div>
+                  )}
+               </div>
+             ))}
+             
+             {processedTransactions.length === 0 && (
+               <div className="text-center py-20 text-zinc-600">
+                  <i className="bi bi-inbox text-5xl mb-4 block"></i>
+                  <p className="text-sm font-medium">Nenhuma receita encontrada</p>
+               </div>
+             )}
           </div>
         </main>
       </div>
+
+      {/* ── BOTTOM NAVIGATION MOBILE (Nativo) ── */}
+      <nav className="lg:hidden fixed bottom-0 w-full bg-[#1A1A1A] px-6 py-2 pb-4 flex justify-between items-center z-50 rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.8)] border-t border-white/5">
+        <button onClick={() => navigate('/dashboard')} className="flex flex-col items-center text-zinc-500">
+          <i className="bi bi-house-door-fill text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Início</span>
+        </button>
+        <button onClick={() => navigate('/despesas')} className="flex flex-col items-center text-zinc-500">
+          <i className="bi bi-arrow-down-circle text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Despesas</span>
+        </button>
+        
+        <div className="relative -top-7">
+          <button onClick={() => {setEditingVirtualRow(null); setEditScope(null); setIsFormOpen(true);}} className="bg-[#22C55E] text-black h-[64px] w-[64px] rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+            <i className="bi bi-plus-lg text-[32px]"></i>
+          </button>
+        </div>
+
+        <button onClick={() => navigate('/receitas')} className="flex flex-col items-center text-[#22C55E] font-bold">
+          <i className="bi bi-arrow-up-circle-fill text-[24px]"></i>
+          <span className="text-[10px] mt-1">Receitas</span>
+        </button>
+        <button onClick={() => navigate('/configuracoes')} className="flex flex-col items-center text-zinc-500">
+          <i className="bi bi-gear text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Ajustes</span>
+        </button>
+      </nav>
 
       <TransactionForm
         isOpen={isFormOpen}

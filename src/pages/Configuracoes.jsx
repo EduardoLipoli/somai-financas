@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { auth } from "../firebase/config";
 import Sidebar from "../components/Sidebar";
 
-// Componente de Tooltip reutilizável (mesmo padrão)
+// Componente de Tooltip reutilizável
 const Tooltip = ({ children, text }) => (
   <div className="relative group inline-block">
     {children}
@@ -21,6 +22,7 @@ const Tooltip = ({ children, text }) => (
 );
 
 export default function Configuracoes() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("userSettings");
 
@@ -67,10 +69,13 @@ export default function Configuracoes() {
         setUser(currentUser);
         setNewName(currentUser.displayName || "");
         loadCategories(currentUser.uid, categoryType);
+      } else {
+        // Redireciona para o login se não houver usuário (Logout)
+        navigate("/");
       }
     });
     return () => unsubscribe();
-  }, [categoryType]);
+  }, [categoryType, navigate]);
 
   const loadCategories = async (uid, tipo) => {
     const db = firebase.firestore();
@@ -84,6 +89,18 @@ export default function Configuracoes() {
     cats.sort((a, b) => a.name.localeCompare(b.name));
     setCategories(cats);
     setSelectedCategories([]);
+  };
+
+  // ==========================================
+  // LOGOUT (Sair da Conta)
+  // ==========================================
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      navigate("/");
+    } catch (error) {
+      showAlert("Erro ao sair da conta: " + error.message, "error");
+    }
   };
 
   // ==========================================
@@ -324,16 +341,23 @@ export default function Configuracoes() {
     }
   };
 
-  if (!user) return <div className="bg-zinc-900 h-screen"></div>;
+  if (!user)
+    return <div className="bg-[#121212] lg:bg-zinc-900 h-screen"></div>;
 
   return (
-    <div className="bg-zinc-900 text-zinc-200 h-screen grid grid-cols-[auto,1fr] font-['Inter'] overflow-hidden">
-      <Sidebar />
+    <div className="bg-[#121212] lg:bg-zinc-900 text-zinc-200 h-screen flex flex-col lg:grid lg:grid-cols-[auto,1fr] font-['Inter'] relative overflow-hidden">
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
 
-      {/* Alerta Superior com animação e ícone */}
+      {/* Alerta Superior Responsivo */}
       {alertMsg && (
         <div
-          className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl font-medium flex items-center gap-3 animate-fade-in ${alertMsg.type === "error" ? "bg-red-500/90 backdrop-blur-sm text-white border border-red-400" : "bg-green-500/90 backdrop-blur-sm text-white border border-green-400"}`}
+          className={`fixed top-4 left-4 right-4 lg:top-6 lg:left-auto lg:right-6 z-[100] px-5 py-3 rounded-xl shadow-2xl font-medium flex items-center gap-3 animate-fade-in ${
+            alertMsg.type === "error"
+              ? "bg-red-500/90 backdrop-blur-sm text-white border border-red-400"
+              : "bg-[#22C55E]/90 backdrop-blur-sm text-white border border-[#22C55E]"
+          }`}
         >
           <i
             className={`fas ${alertMsg.type === "error" ? "fa-exclamation-circle" : "fa-check-circle"} text-lg`}
@@ -343,19 +367,62 @@ export default function Configuracoes() {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Cabeçalho com gradiente e ícone */}
-        <header className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/10 flex items-center justify-between px-6 py-4">
+        {/* ─── CABEÇALHO DESKTOP ─── */}
+        <header className="hidden lg:flex sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/10 items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <i className="fas fa-sliders-h text-green-500 text-xl"></i>
+            <i className="fas fa-sliders-h text-[#22C55E] text-xl"></i>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
               Configurações
             </h1>
           </div>
         </header>
 
+        {/* ─── CABEÇALHO MOBILE (Estilo App Somaí) ─── */}
+        <header className="lg:hidden flex flex-col pt-10 px-5 pb-2 bg-[#121212]">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-[26px] font-bold text-white">Ajustes</h1>
+
+            {/* NOVO BOTÃO DE LOGOUT MOBILE */}
+            <button
+              onClick={handleLogout}
+              className="bg-[#EF4444]/10 text-[#EF4444] px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 active:scale-95 transition-transform"
+            >
+              <i className="fas fa-sign-out-alt"></i> Sair
+            </button>
+          </div>
+
+          {/* Menu Horizontal de Abas (Mobile) */}
+          <div className="flex bg-[#1E1E1E] p-1.5 rounded-2xl mb-2 overflow-x-auto hide-scrollbar shadow-inner border border-white/5">
+            <button
+              onClick={() => setActiveTab("userSettings")}
+              className={`flex-1 min-w-[90px] py-2.5 text-[12px] sm:text-[13px] font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === "userSettings" ? "bg-[#22C55E] text-white shadow-md" : "text-zinc-500"}`}
+            >
+              <i className="fas fa-user"></i> Perfil
+            </button>
+            <button
+              onClick={() => setActiveTab("categorySettings")}
+              className={`flex-1 min-w-[90px] py-2.5 text-[12px] sm:text-[13px] font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === "categorySettings" ? "bg-[#22C55E] text-white shadow-md" : "text-zinc-500"}`}
+            >
+              <i className="fas fa-tags"></i> Categorias
+            </button>
+            <button
+              onClick={() => setActiveTab("exportImportSection")}
+              className={`flex-1 min-w-[90px] py-2.5 text-[12px] sm:text-[13px] font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === "exportImportSection" ? "bg-[#22C55E] text-white shadow-md" : "text-zinc-500"}`}
+            >
+              <i className="fas fa-database"></i> Backup
+            </button>
+            <button
+              onClick={() => navigate("/metas")}
+              className="flex-1 min-w-[90px] py-2.5 text-[12px] sm:text-[13px] font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-zinc-500 hover:text-white"
+            >
+              <i className="fas fa-bullseye"></i> Metas
+            </button>
+          </div>
+        </header>
+
         <div className="flex flex-1 overflow-hidden">
-          {/* Menu Lateral de Configurações com design aprimorado */}
-          <aside className="w-64 bg-zinc-800/50 border-r border-white/10 p-5 flex-shrink-0 overflow-y-auto custom-scroll">
+          {/* ─── MENU LATERAL DESKTOP ─── */}
+          <aside className="hidden lg:flex flex-col w-64 bg-zinc-800/50 border-r border-white/10 p-5 flex-shrink-0 overflow-y-auto custom-scroll">
             <ul className="space-y-2">
               <li>
                 <Tooltip text="Configurações de perfil e senha">
@@ -402,26 +469,51 @@ export default function Configuracoes() {
                   </button>
                 </Tooltip>
               </li>
+
+              <li className="pt-4 mt-4 border-t border-white/5">
+                <Tooltip text="Gerenciar suas metas financeiras">
+                  <button
+                    onClick={() => navigate("/metas")}
+                    className="w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 text-zinc-400 hover:bg-zinc-700/50 hover:text-white"
+                  >
+                    <i className="fas fa-bullseye"></i>
+                    <span>Metas</span>
+                  </button>
+                </Tooltip>
+              </li>
+
+              {/* NOVO BOTÃO DE LOGOUT NO DESKTOP */}
+              <li className="pt-2">
+                <Tooltip text="Sair da sua conta">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 text-red-500 hover:bg-red-500/10 hover:text-red-400 font-bold"
+                  >
+                    <i className="fas fa-sign-out-alt"></i>
+                    <span>Sair da conta</span>
+                  </button>
+                </Tooltip>
+              </li>
             </ul>
           </aside>
 
-          {/* Área Principal de Conteúdo */}
-          <main className="flex-1 p-6 lg:p-8 overflow-y-auto bg-zinc-900 custom-scroll">
+          {/* ─── ÁREA PRINCIPAL DE CONTEÚDO (Responsiva) ─── */}
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-[#121212] lg:bg-zinc-900 custom-scroll pb-[100px] lg:pb-8">
             {/* ABA: USUÁRIO */}
             {activeTab === "userSettings" && (
-              <div className="max-w-2xl mx-auto bg-gradient-to-br from-zinc-800 to-zinc-800/80 rounded-2xl shadow-xl border border-white/5 p-8 animate-fade-in">
+              <div className="max-w-2xl mx-auto bg-[#1C1C1E] lg:bg-gradient-to-br lg:from-zinc-800 lg:to-zinc-800/80 rounded-[24px] lg:rounded-2xl shadow-xl border border-white/5 p-6 lg:p-8 animate-fade-in">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-6 mb-8">
-                  <div className="bg-green-500/20 p-3 rounded-xl">
-                    <i className="fas fa-user-cog text-green-400 text-xl"></i>
+                  <div className="bg-[#22C55E]/10 lg:bg-green-500/20 p-3 rounded-xl">
+                    <i className="fas fa-user-cog text-[#22C55E] lg:text-green-400 text-xl"></i>
                   </div>
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-xl lg:text-2xl font-bold text-white">
                     Configurações do Perfil
                   </h2>
                 </div>
 
                 <div className="space-y-8">
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    <label className="block text-sm font-medium text-zinc-400 mb-2 pl-1">
                       Alterar Nome de Exibição
                     </label>
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -429,20 +521,20 @@ export default function Configuracoes() {
                         type="text"
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        className="flex-1 px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-green-500 transition text-white placeholder-zinc-500"
+                        className="flex-1 px-4 py-3.5 lg:py-3 bg-[#121212] lg:bg-zinc-900 border border-white/5 lg:border-zinc-700 rounded-2xl lg:rounded-xl focus:ring-1 focus:ring-[#22C55E] transition text-white placeholder-zinc-600 outline-none"
                         placeholder="Seu nome"
                       />
                       <button
                         onClick={handleUpdateName}
-                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-md"
+                        className="bg-[#22C55E] hover:bg-green-600 text-black lg:text-white px-6 py-3.5 lg:py-3 rounded-2xl lg:rounded-xl font-bold transition-all active:scale-95 shadow-md"
                       >
                         Salvar
                       </button>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-white/10">
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  <div className="pt-6 border-t border-white/5">
+                    <label className="block text-sm font-medium text-zinc-400 mb-2 pl-1">
                       Alterar Senha
                     </label>
                     <div className="space-y-3">
@@ -451,18 +543,18 @@ export default function Configuracoes() {
                         placeholder="Senha atual"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-green-500 transition text-white"
+                        className="w-full px-4 py-3.5 lg:py-3 bg-[#121212] lg:bg-zinc-900 border border-white/5 lg:border-zinc-700 rounded-2xl lg:rounded-xl focus:ring-1 focus:ring-[#22C55E] transition text-white outline-none"
                       />
                       <input
                         type="password"
                         placeholder="Nova senha (min. 6 caracteres)"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-green-500 transition text-white"
+                        className="w-full px-4 py-3.5 lg:py-3 bg-[#121212] lg:bg-zinc-900 border border-white/5 lg:border-zinc-700 rounded-2xl lg:rounded-xl focus:ring-1 focus:ring-[#22C55E] transition text-white outline-none"
                       />
                       <button
                         onClick={handleUpdatePassword}
-                        className="w-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white py-3 rounded-xl font-medium transition-all"
+                        className="w-full bg-[#EF4444]/10 border border-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444] hover:text-white py-3.5 lg:py-3 rounded-2xl lg:rounded-xl font-bold transition-all mt-2"
                       >
                         <i className="fas fa-key mr-2"></i>Alterar Senha
                       </button>
@@ -474,44 +566,44 @@ export default function Configuracoes() {
 
             {/* ABA: CATEGORIAS */}
             {activeTab === "categorySettings" && (
-              <div className="max-w-3xl mx-auto bg-gradient-to-br from-zinc-800 to-zinc-800/80 rounded-2xl shadow-xl border border-white/5 p-8 animate-fade-in">
+              <div className="max-w-3xl mx-auto bg-[#1C1C1E] lg:bg-gradient-to-br lg:from-zinc-800 lg:to-zinc-800/80 rounded-[24px] lg:rounded-2xl shadow-xl border border-white/5 p-6 lg:p-8 animate-fade-in">
                 <div className="flex flex-wrap justify-between items-center gap-4 border-b border-white/10 pb-6 mb-8">
                   <div className="flex items-center gap-3">
-                    <div className="bg-green-500/20 p-3 rounded-xl">
-                      <i className="fas fa-tag text-green-400 text-xl"></i>
+                    <div className="bg-[#22C55E]/10 lg:bg-green-500/20 p-3 rounded-xl">
+                      <i className="fas fa-tag text-[#22C55E] lg:text-green-400 text-xl"></i>
                     </div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl lg:text-2xl font-bold text-white">
                       Gerenciar Categorias
                     </h2>
                   </div>
-                  <Tooltip text="Restaurar categorias padrão do sistema">
+                  <Tooltip text="Restaurar categorias padrão">
                     <button
                       onClick={handleRestoreDefaults}
-                      className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                      className="text-[13px] font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 bg-[#121212] lg:bg-zinc-800 px-3 py-1.5 rounded-lg border border-white/5"
                     >
-                      <i className="fas fa-undo-alt"></i> Restaurar Padrões
+                      <i className="fas fa-undo-alt"></i> Restaurar
                     </button>
                   </Tooltip>
                 </div>
 
                 {/* Toggle Despesas/Receitas */}
-                <div className="flex gap-2 mb-8 p-1 bg-zinc-900/50 rounded-xl w-fit">
+                <div className="flex gap-2 mb-6 p-1.5 bg-[#121212] lg:bg-zinc-900/50 rounded-2xl lg:rounded-xl w-full sm:w-fit border border-white/5">
                   <button
                     onClick={() => setCategoryType("Gasto")}
-                    className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all duration-200 text-sm ${
                       categoryType === "Gasto"
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md"
-                        : "text-zinc-400 hover:text-white"
+                        ? "bg-[#EF4444] text-white shadow-md"
+                        : "text-zinc-500 hover:text-white"
                     }`}
                   >
                     <i className="fas fa-arrow-down mr-2"></i>Despesas
                   </button>
                   <button
                     onClick={() => setCategoryType("Ganho")}
-                    className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all duration-200 text-sm ${
                       categoryType === "Ganho"
-                        ? "bg-gradient-to-r from-green-600 to-green-700 text-white shadow-md"
-                        : "text-zinc-400 hover:text-white"
+                        ? "bg-[#22C55E] text-white shadow-md"
+                        : "text-zinc-500 hover:text-white"
                     }`}
                   >
                     <i className="fas fa-arrow-up mr-2"></i>Receitas
@@ -521,26 +613,26 @@ export default function Configuracoes() {
                 {/* Formulário de nova categoria */}
                 <form
                   onSubmit={handleAddCategory}
-                  className="flex flex-col sm:flex-row gap-3 mb-8"
+                  className="flex flex-col sm:flex-row gap-3 mb-6"
                 >
                   <input
                     type="text"
                     placeholder={`Nova categoria de ${categoryType === "Gasto" ? "Despesa" : "Receita"}...`}
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-green-500 transition text-white"
+                    className="flex-1 px-4 py-3.5 lg:py-3 bg-[#121212] lg:bg-zinc-900 border border-white/5 lg:border-zinc-700 rounded-2xl lg:rounded-xl focus:ring-1 focus:ring-[#22C55E] transition text-white outline-none"
                   />
                   <button
                     type="submit"
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 shadow-md flex items-center justify-center gap-2"
+                    className="bg-[#22C55E] lg:bg-green-600 hover:bg-green-700 text-black lg:text-white px-6 py-3.5 lg:py-3 rounded-2xl lg:rounded-xl font-bold transition-all active:scale-95 shadow-md flex items-center justify-center gap-2"
                   >
                     <i className="fas fa-plus"></i> Adicionar
                   </button>
                 </form>
 
                 {/* Lista de categorias */}
-                <div className="bg-zinc-900/50 border border-white/10 rounded-xl overflow-hidden">
-                  <div className="flex flex-wrap justify-between items-center gap-3 p-4 bg-zinc-800/30 border-b border-white/10">
+                <div className="bg-[#121212] lg:bg-zinc-900/50 border border-white/5 lg:border-white/10 rounded-[20px] lg:rounded-xl overflow-hidden shadow-inner">
+                  <div className="flex flex-wrap justify-between items-center gap-3 p-4 bg-[#1C1C1E] lg:bg-zinc-800/30 border-b border-white/5 lg:border-white/10">
                     <label className="flex items-center gap-3 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -549,9 +641,9 @@ export default function Configuracoes() {
                           categories.length > 0
                         }
                         onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded border-zinc-500 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+                        className="w-4 h-4 rounded border-zinc-600 bg-[#121212] text-[#22C55E] focus:ring-[#22C55E] focus:ring-offset-0"
                       />
-                      <span className="text-sm font-medium text-zinc-300">
+                      <span className="text-sm font-semibold text-zinc-300">
                         Selecionar Todos
                       </span>
                     </label>
@@ -559,7 +651,7 @@ export default function Configuracoes() {
                       <Tooltip text="Excluir categorias selecionadas">
                         <button
                           onClick={handleDeleteSelected}
-                          className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                          className="bg-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444] hover:text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 uppercase tracking-wide"
                         >
                           <i className="fas fa-trash-alt"></i> Excluir (
                           {selectedCategories.length})
@@ -570,8 +662,8 @@ export default function Configuracoes() {
 
                   <ul className="max-h-[400px] overflow-y-auto custom-scroll">
                     {categories.length === 0 ? (
-                      <li className="p-8 text-center text-zinc-500 flex flex-col items-center gap-2">
-                        <i className="fas fa-folder-open text-3xl"></i>
+                      <li className="p-8 text-center text-zinc-600 flex flex-col items-center gap-2 font-medium">
+                        <i className="fas fa-folder-open text-3xl mb-1"></i>
                         Nenhuma categoria encontrada.
                       </li>
                     ) : (
@@ -579,10 +671,10 @@ export default function Configuracoes() {
                         <li
                           key={cat.id}
                           onClick={() => toggleCategorySelection(cat.id)}
-                          className={`flex justify-between items-center p-4 border-b border-white/5 cursor-pointer transition-all duration-150 hover:bg-zinc-800/50 ${
+                          className={`flex justify-between items-center p-4 border-b border-white/5 cursor-pointer transition-all duration-150 hover:bg-[#1C1C1E] lg:hover:bg-zinc-800/50 ${
                             selectedCategories.includes(cat.id)
-                              ? "bg-green-900/20 border-l-4 border-green-500"
-                              : ""
+                              ? "bg-[#22C55E]/10 border-l-4 border-[#22C55E]"
+                              : "border-l-4 border-transparent"
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -590,25 +682,25 @@ export default function Configuracoes() {
                               type="checkbox"
                               checked={selectedCategories.includes(cat.id)}
                               readOnly
-                              className="w-4 h-4 rounded border-zinc-500 text-green-500 focus:ring-green-500"
+                              className="w-4 h-4 rounded border-zinc-600 bg-[#121212] text-[#22C55E] focus:ring-[#22C55E]"
                             />
-                            <span className="text-zinc-200">{cat.name}</span>
+                            <span className="text-zinc-200 font-medium text-[15px] lg:text-base">
+                              {cat.name}
+                            </span>
                           </div>
-                          <Tooltip text="Editar categoria">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditModal({
-                                  isOpen: true,
-                                  id: cat.id,
-                                  name: cat.name,
-                                });
-                              }}
-                              className="text-zinc-500 hover:text-green-400 p-2 rounded-lg hover:bg-zinc-700 transition-colors"
-                            >
-                              <i className="fas fa-pen"></i>
-                            </button>
-                          </Tooltip>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditModal({
+                                isOpen: true,
+                                id: cat.id,
+                                name: cat.name,
+                              });
+                            }}
+                            className="text-zinc-500 hover:text-[#22C55E] p-2.5 rounded-xl hover:bg-[#121212] lg:hover:bg-zinc-700 transition-colors"
+                          >
+                            <i className="fas fa-pen"></i>
+                          </button>
                         </li>
                       ))
                     )}
@@ -619,52 +711,46 @@ export default function Configuracoes() {
 
             {/* ABA: BACKUP */}
             {activeTab === "exportImportSection" && (
-              <div className="max-w-3xl mx-auto bg-gradient-to-br from-zinc-800 to-zinc-800/80 rounded-2xl shadow-xl border border-white/5 p-8 animate-fade-in">
+              <div className="max-w-3xl mx-auto bg-[#1C1C1E] lg:bg-gradient-to-br lg:from-zinc-800 lg:to-zinc-800/80 rounded-[24px] lg:rounded-2xl shadow-xl border border-white/5 p-6 lg:p-8 animate-fade-in">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-6 mb-8">
-                  <div className="bg-blue-500/20 p-3 rounded-xl">
-                    <i className="fas fa-database text-blue-400 text-xl"></i>
+                  <div className="bg-[#3B82F6]/10 lg:bg-blue-500/20 p-3 rounded-xl">
+                    <i className="fas fa-database text-[#3B82F6] lg:text-blue-400 text-xl"></i>
                   </div>
-                  <h2 className="text-2xl font-bold text-white">
-                    Exportar & Importar Dados
+                  <h2 className="text-xl lg:text-2xl font-bold text-white">
+                    Backup de Dados
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                   {/* Exportar */}
-                  <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10 hover:border-blue-500/30 transition-all duration-300 group">
+                  <div className="bg-[#121212] lg:bg-zinc-900/50 rounded-[20px] lg:rounded-xl p-6 border border-white/5 lg:border-white/10 hover:border-[#3B82F6]/30 transition-all duration-300">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="bg-blue-500/20 p-2 rounded-lg group-hover:bg-blue-500/30 transition-colors">
-                        <i className="fas fa-file-export text-blue-400 text-lg"></i>
+                      <div className="bg-[#3B82F6]/10 p-2.5 rounded-xl">
+                        <i className="fas fa-file-export text-[#3B82F6] text-lg"></i>
                       </div>
-                      <h3 className="text-lg font-bold text-white">
-                        Exportar (Backup)
-                      </h3>
+                      <h3 className="text-lg font-bold text-white">Exportar</h3>
                     </div>
-                    <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                    <p className="text-[13px] lg:text-sm text-zinc-400 mb-6 leading-relaxed">
                       Baixe um arquivo JSON com todas as suas transações e
-                      categorias. Guarde este arquivo em um local seguro.
+                      categorias para guardar em segurança.
                     </p>
-                    <Tooltip text="Exportar todos os dados do sistema">
-                      <button
-                        onClick={handleExportData}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-md flex items-center justify-center gap-2"
-                      >
-                        <i className="fas fa-download"></i> Exportar Meus Dados
-                      </button>
-                    </Tooltip>
+                    <button
+                      onClick={handleExportData}
+                      className="w-full bg-[#3B82F6] hover:bg-blue-600 text-white py-3.5 lg:py-3 rounded-2xl lg:rounded-xl font-bold transition-all active:scale-95 shadow-md flex items-center justify-center gap-2"
+                    >
+                      <i className="fas fa-download"></i> Exportar Dados
+                    </button>
                   </div>
 
                   {/* Importar */}
-                  <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10 hover:border-green-500/30 transition-all duration-300 group">
+                  <div className="bg-[#121212] lg:bg-zinc-900/50 rounded-[20px] lg:rounded-xl p-6 border border-white/5 lg:border-white/10 hover:border-[#22C55E]/30 transition-all duration-300">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="bg-green-500/20 p-2 rounded-lg group-hover:bg-green-500/30 transition-colors">
-                        <i className="fas fa-file-import text-green-400 text-lg"></i>
+                      <div className="bg-[#22C55E]/10 p-2.5 rounded-xl">
+                        <i className="fas fa-file-import text-[#22C55E] text-lg"></i>
                       </div>
-                      <h3 className="text-lg font-bold text-white">
-                        Importar Dados
-                      </h3>
+                      <h3 className="text-lg font-bold text-white">Importar</h3>
                     </div>
-                    <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
+                    <p className="text-[13px] lg:text-sm text-zinc-400 mb-4 leading-relaxed">
                       Restaure um backup anterior selecionando o arquivo JSON
                       gerado pelo sistema.
                     </p>
@@ -679,35 +765,27 @@ export default function Configuracoes() {
                     <div className="flex gap-2 mb-4">
                       <label
                         htmlFor="fileUpload"
-                        className="flex-1 bg-zinc-800 border border-zinc-600 hover:bg-zinc-700 text-center py-2.5 rounded-xl cursor-pointer text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                        className="flex-1 bg-[#1C1C1E] lg:bg-zinc-800 border border-white/5 lg:border-zinc-600 text-center py-3 lg:py-2.5 rounded-2xl lg:rounded-xl cursor-pointer text-sm font-bold text-white transition-all flex items-center justify-center gap-2 active:scale-95"
                       >
                         <i className="fas fa-folder-open"></i> Escolher Arquivo
                       </label>
                     </div>
                     {importFile && (
-                      <p className="text-xs text-green-400 mb-4 text-center truncate bg-zinc-800/50 py-1 px-2 rounded-full">
+                      <p className="text-xs text-[#22C55E] mb-4 text-center truncate bg-[#22C55E]/10 py-1.5 px-3 rounded-full font-bold">
                         <i className="fas fa-check-circle mr-1"></i>{" "}
                         {importFile.name}
                       </p>
                     )}
 
-                    <Tooltip
-                      text={
-                        !importFile
-                          ? "Selecione um arquivo primeiro"
-                          : "Restaurar backup"
-                      }
+                    <button
+                      onClick={handleImportData}
+                      disabled={!importFile}
+                      className="w-full bg-[#22C55E] lg:bg-green-600 disabled:opacity-30 disabled:bg-zinc-700 disabled:text-zinc-500 text-black lg:text-white py-3.5 lg:py-3 rounded-2xl lg:rounded-xl font-bold transition-all active:scale-95 shadow-md flex items-center justify-center gap-2"
                     >
-                      <button
-                        onClick={handleImportData}
-                        disabled={!importFile}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-md flex items-center justify-center gap-2"
-                      >
-                        <i className="fas fa-upload"></i> Restaurar Backup
-                      </button>
-                    </Tooltip>
+                      <i className="fas fa-upload"></i> Restaurar Backup
+                    </button>
                     {importStatus && (
-                      <p className="text-xs text-center mt-3 text-zinc-400 bg-zinc-800/30 py-1 rounded-full">
+                      <p className="text-xs text-center mt-3 text-zinc-400 bg-zinc-800/30 py-1 rounded-full font-medium">
                         {importStatus}
                       </p>
                     )}
@@ -719,33 +797,76 @@ export default function Configuracoes() {
         </div>
       </div>
 
+      {/* ─── BOTTOM NAVIGATION MOBILE (Nativo) ─── */}
+      <nav className="lg:hidden fixed bottom-0 w-full bg-[#1A1A1A] px-6 py-2 pb-4 flex justify-between items-center z-50 rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.8)] border-t border-white/5">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex flex-col items-center text-zinc-500"
+        >
+          <i className="bi bi-house-door-fill text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Início</span>
+        </button>
+        <button
+          onClick={() => navigate("/despesas")}
+          className="flex flex-col items-center text-zinc-500"
+        >
+          <i className="bi bi-arrow-down-circle text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Despesas</span>
+        </button>
+
+        {/* Placeholder central (inativo em Configurações para dar foco nas abas) */}
+        <div className="relative -top-7">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="bg-[#2A2A2A] text-zinc-500 h-[64px] w-[64px] rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform border border-white/5"
+          >
+            <i className="bi bi-house text-[28px]"></i>
+          </button>
+        </div>
+
+        <button
+          onClick={() => navigate("/receitas")}
+          className="flex flex-col items-center text-zinc-500"
+        >
+          <i className="bi bi-arrow-up-circle text-[24px]"></i>
+          <span className="text-[10px] mt-1 font-medium">Receitas</span>
+        </button>
+        <button
+          onClick={() => navigate("/configuracoes")}
+          className="flex flex-col items-center text-[#22C55E] font-bold"
+        >
+          <i className="bi bi-gear-fill text-[24px]"></i>
+          <span className="text-[10px] mt-1">Ajustes</span>
+        </button>
+      </nav>
+
       {/* Modal Genérico de Confirmação */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-96 shadow-2xl animate-fade-in">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-yellow-500/20 p-2 rounded-full">
-                <i className="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[110] p-5">
+          <div className="bg-[#1C1C1E] border border-white/10 rounded-[28px] p-6 w-full max-w-xs shadow-2xl animate-fade-in">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="bg-yellow-500/10 p-2 rounded-xl">
+                <i className="fas fa-exclamation-triangle text-yellow-500 text-lg"></i>
               </div>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-lg font-bold text-white">
                 {confirmModal.title}
               </h3>
             </div>
-            <p className="text-zinc-300 mb-6 leading-relaxed">
+            <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
               {confirmModal.text}
             </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setConfirmModal({ isOpen: false })}
-                className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
-              >
-                Cancelar
-              </button>
+            <div className="flex flex-col gap-2">
               <button
                 onClick={confirmModal.action}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md"
+                className="w-full py-3.5 bg-red-600 text-white rounded-2xl text-xs font-bold uppercase tracking-wider"
               >
                 Confirmar
+              </button>
+              <button
+                onClick={() => setConfirmModal({ isOpen: false })}
+                className="w-full py-3.5 text-zinc-500 text-xs font-bold uppercase tracking-wider"
+              >
+                Cancelar
               </button>
             </div>
           </div>
@@ -754,13 +875,13 @@ export default function Configuracoes() {
 
       {/* Modal de Editar Categoria */}
       {editModal.isOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-96 shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[110] p-5">
+          <div className="bg-[#1C1C1E] border border-white/10 rounded-[28px] p-6 w-full max-w-xs shadow-2xl animate-fade-in">
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-green-500/20 p-2 rounded-full">
-                <i className="fas fa-edit text-green-400 text-xl"></i>
+              <div className="bg-[#22C55E]/10 p-2 rounded-xl">
+                <i className="fas fa-pen text-[#22C55E] text-lg"></i>
               </div>
-              <h3 className="text-xl font-bold text-white">Editar Categoria</h3>
+              <h3 className="text-lg font-bold text-white">Editar Categoria</h3>
             </div>
             <input
               type="text"
@@ -768,23 +889,23 @@ export default function Configuracoes() {
               onChange={(e) =>
                 setEditModal({ ...editModal, name: e.target.value })
               }
-              className="w-full p-3 bg-zinc-800 border border-zinc-600 rounded-xl text-white focus:ring-2 focus:ring-green-500 transition mb-6"
+              className="w-full p-3.5 bg-[#121212] border border-white/5 rounded-2xl text-white focus:ring-1 focus:ring-[#22C55E] transition mb-6 outline-none"
               autoFocus
             />
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleEditCategory}
+                className="w-full py-3.5 bg-[#22C55E] text-black rounded-2xl text-xs font-bold uppercase tracking-wider"
+              >
+                Salvar Categoria
+              </button>
               <button
                 onClick={() =>
                   setEditModal({ isOpen: false, id: null, name: "" })
                 }
-                className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                className="w-full py-3.5 text-zinc-500 text-xs font-bold uppercase tracking-wider"
               >
                 Cancelar
-              </button>
-              <button
-                onClick={handleEditCategory}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
-              >
-                Salvar
               </button>
             </div>
           </div>

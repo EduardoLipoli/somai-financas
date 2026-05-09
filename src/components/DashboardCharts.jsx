@@ -28,6 +28,8 @@ export default function DashboardCharts({
   transactions,
   currentMonth,
   currentYear,
+  onMonthSelect,
+  activeTab = "despesas", // Prop para controlar as abas no mobile
 }) {
   // 1. Processamento de Dados usando useMemo
   const chartData = useMemo(() => {
@@ -35,18 +37,14 @@ export default function DashboardCharts({
     const monthlyIncome = Array(12).fill(0);
     const monthlyExpense = Array(12).fill(0);
 
-    // Filtros para o mês atual
-    const categoriesMap = {};
     let paidCount = 0;
     let pendingCount = 0;
     let day01 = 0;
     let day15 = 0;
 
-    // Processa Transações (Verifica se transactions existe para evitar o erro de 'undefined')
+    // Processa Transações
     if (transactions && Array.isArray(transactions)) {
       transactions.forEach((t) => {
-        // Como os dados já vêm expandidos e com dueDate formatado do Dashboard,
-        // usamos a lógica de data segura.
         const d = new Date(t.dueDate);
         const isCurrentYear = d.getFullYear() === currentYear;
         const isCurrentMonth = d.getMonth() === currentMonth && isCurrentYear;
@@ -54,16 +52,16 @@ export default function DashboardCharts({
 
         // Gráficos Anuais (Meses)
         if (isCurrentYear) {
-          if (t.type === "Ganho") monthlyIncome[d.getMonth()] += amount;
-          if (t.type === "Gasto") monthlyExpense[d.getMonth()] += amount;
+          if (t.type === "Ganho" || t.type === "Receita") {
+            monthlyIncome[d.getMonth()] += amount;
+          }
+          if (t.type === "Gasto") {
+            monthlyExpense[d.getMonth()] += amount;
+          }
         }
 
-        // Gráficos do Mês Específico
+        // Gráficos do Mês Específico (Pendentes e Vencimentos)
         if (isCurrentMonth && t.type === "Gasto") {
-          // Categorias (Já vêm com o nome formatado do Dashboard)
-          const cat = t.category || "Sem Categoria";
-          categoriesMap[cat] = (categoriesMap[cat] || 0) + amount;
-
           // Pagas vs Pendentes
           if (t.isPaid) paidCount++;
           else pendingCount++;
@@ -78,7 +76,6 @@ export default function DashboardCharts({
     return {
       monthlyIncome,
       monthlyExpense,
-      categoriesMap,
       paidCount,
       pendingCount,
       day01,
@@ -98,6 +95,13 @@ export default function DashboardCharts({
         ticks: { color: "#a1a1aa" },
       },
     },
+    // Transforma o cursor em "mãozinha" ao passar sobre a barra para indicar que é clicável
+    onHover: (event, chartElement) => {
+      if (event.native && event.native.target) {
+        event.native.target.style.cursor =
+          chartElement.length > 0 ? "pointer" : "default";
+      }
+    },
   };
 
   const optionsDoughnut = {
@@ -115,45 +119,23 @@ export default function DashboardCharts({
     borderWidth: 0,
   };
 
+  // Função disparada ao clicar na barra do gráfico
+  const handleBarClick = (event, elements) => {
+    if (elements.length > 0 && onMonthSelect) {
+      const dataIndex = elements[0].index; // Pega o índice do mês clicado (0 = Jan, 1 = Fev...)
+      onMonthSelect(dataIndex, currentYear);
+    }
+  };
+
   return (
     <>
       {/* Gráficos Mensais de Entrada e Saída */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-6">
-        <div className="bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5">
-          <h2 className="text-lg font-semibold text-zinc-300 mb-4">
-            <i className="bi bi-graph-up-arrow text-green-400 mr-2"></i>{" "}
-            Receitas por Mês
-          </h2>
-          <div className="h-56">
-            <Bar
-              data={{
-                labels: [
-                  "Jan",
-                  "Fev",
-                  "Mar",
-                  "Abr",
-                  "Mai",
-                  "Jun",
-                  "Jul",
-                  "Ago",
-                  "Set",
-                  "Out",
-                  "Nov",
-                  "Dez",
-                ],
-                datasets: [
-                  {
-                    data: chartData.monthlyIncome,
-                    backgroundColor: "#22c55e",
-                    borderRadius: 4,
-                  },
-                ],
-              }}
-              options={optionsBar}
-            />
-          </div>
-        </div>
-        <div className="bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5">
+      {/* Uso do Tailwind flex-col e da propriedade activeTab para controlar o que renderiza no Mobile e no Desktop */}
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-5 w-full mb-6">
+        {/* Gráfico de Despesas */}
+        <div
+          className={`w-full lg:w-1/2 bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5 ${activeTab === "receitas" ? "hidden lg:block" : "block"}`}
+        >
           <h2 className="text-lg font-semibold text-zinc-300 mb-4">
             <i className="bi bi-graph-down-arrow text-red-400 mr-2"></i>{" "}
             Despesas por Mês
@@ -184,40 +166,54 @@ export default function DashboardCharts({
                 ],
               }}
               options={optionsBar}
+              onClick={handleBarClick}
+            />
+          </div>
+        </div>
+
+        {/* Gráfico de Receitas */}
+        <div
+          className={`w-full lg:w-1/2 bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5 ${activeTab === "despesas" ? "hidden lg:block" : "block"}`}
+        >
+          <h2 className="text-lg font-semibold text-zinc-300 mb-4">
+            <i className="bi bi-graph-up-arrow text-green-400 mr-2"></i>{" "}
+            Receitas por Mês
+          </h2>
+          <div className="h-56">
+            <Bar
+              data={{
+                labels: [
+                  "Jan",
+                  "Fev",
+                  "Mar",
+                  "Abr",
+                  "Mai",
+                  "Jun",
+                  "Jul",
+                  "Ago",
+                  "Set",
+                  "Out",
+                  "Nov",
+                  "Dez",
+                ],
+                datasets: [
+                  {
+                    data: chartData.monthlyIncome,
+                    backgroundColor: "#22c55e",
+                    borderRadius: 4,
+                  },
+                ],
+              }}
+              options={optionsBar}
+              onClick={handleBarClick}
             />
           </div>
         </div>
       </div>
 
-      {/* Gráficos de Divisão (Categorias e Status) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
-        <div className="bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5">
-          <h2 className="text-lg font-semibold text-zinc-300 mb-4">
-            <i className="bi bi-tags text-yellow-400 mr-2"></i> Por Categoria
-          </h2>
-          <div className="h-56">
-            <Bar
-              options={{ ...optionsBar, indexAxis: "y" }}
-              data={{
-                labels: Object.keys(chartData.categoriesMap),
-                datasets: [
-                  {
-                    data: Object.values(chartData.categoriesMap),
-                    backgroundColor: [
-                      "#3b82f6",
-                      "#facc15",
-                      "#a855f7",
-                      "#ec4899",
-                      "#14b8a6",
-                    ],
-                    borderRadius: 4,
-                  },
-                ],
-              }}
-            />
-          </div>
-        </div>
-
+      {/* Gráficos de Divisão Secundários (Pagas vs Pendentes e Vencimentos) */}
+      {/* Como o "Por Categoria" foi removido, a grid passa a ter 2 colunas em vez de 3 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         <div className="bg-zinc-800/50 rounded-xl p-4 md:p-5 h-80 border border-white/5">
           <h2 className="text-lg font-semibold text-zinc-300 mb-4">
             <i className="bi bi-check2-circle text-green-400 mr-2"></i> Pagas vs
