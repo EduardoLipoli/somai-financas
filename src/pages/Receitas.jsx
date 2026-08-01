@@ -118,6 +118,7 @@ export default function Receitas() {
   const [filterStatus, setFilterStatus] = useState(""); // Adicionado para o filtro Mobile funcionar
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   // ── Ordenação ──────────────────────────────────────────────────────────────
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -789,32 +790,50 @@ export default function Receitas() {
         </header>
 
         {/* ── CABEÇALHO MOBILE (Estilo App Somaí) ── */}
-        <header className="lg:hidden flex flex-col px-5 pt-10 pb-4 bg-[#121212]">
-          <h1 className="text-[26px] font-bold text-white mb-6">Receitas</h1>
+        <header className="lg:hidden flex flex-col px-5 pt-5 pb-2 bg-[#121212]">
+          <h1 className="text-[19px] font-bold text-white mb-3">Receitas</h1>
           
-          {/* Card Verde */}
-          <div className="bg-gradient-to-br from-[#22C55E] to-[#15803D] rounded-[24px] p-6 shadow-xl mb-6 border border-white/10 relative overflow-hidden">
-             <div className="flex items-center gap-2 mb-2 text-white/80">
-                <div className="bg-white/20 p-1.5 rounded-lg"><i className="bi bi-arrow-up text-white text-xs"></i></div>
-                <span className="text-xs font-bold uppercase tracking-wider">Receitas</span>
-             </div>
-             <p className="text-[34px] font-black text-white mb-4">{formatarMoeda(resumo.total)}</p>
-             <div className="h-[1px] bg-white/20 mb-4" />
-             <div className="flex justify-between">
-                <div>
-                  <p className="text-[11px] text-white/70 font-medium">Receitas a receber</p>
-                  <p className="text-sm font-bold text-white">{formatarMoeda(resumo.aReceber)}</p>
+          {/* Card Verde — recolhível */}
+          <div
+            className={`bg-gradient-to-br from-[#22C55E] to-[#15803D] rounded-2xl shadow-xl mb-3 border border-white/10 relative overflow-hidden transition-all duration-300 ${isSummaryExpanded ? "p-5" : "p-2.5"}`}
+          >
+             <button
+               onClick={() => setIsSummaryExpanded((v) => !v)}
+               className="w-full flex items-center justify-between gap-2 text-white/80"
+             >
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 p-1 rounded-lg"><i className="bi bi-arrow-up text-white text-[10px]"></i></div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Receitas</span>
                 </div>
-                <div className="text-right">
-                  <p className="text-[11px] text-white/70 font-medium">Receitas recebidas</p>
-                  <p className="text-sm font-bold text-white">{formatarMoeda(resumo.recebido)}</p>
+                <div className="flex items-center gap-2">
+                  {!isSummaryExpanded && (
+                    <span className="text-[14px] font-black text-white">{formatarMoeda(resumo.total)}</span>
+                  )}
+                  <i className={`bi bi-chevron-down text-white text-xs transition-transform duration-300 ${isSummaryExpanded ? "rotate-180" : ""}`}></i>
                 </div>
-             </div>
+             </button>
+
+             {isSummaryExpanded && (
+               <div className="animate-fade-in">
+                 <p className="text-[30px] font-black text-white mb-3 mt-2">{formatarMoeda(resumo.total)}</p>
+                 <div className="h-[1px] bg-white/20 mb-3" />
+                 <div className="flex justify-between">
+                    <div>
+                      <p className="text-[11px] text-white/70 font-medium">Receitas a receber</p>
+                      <p className="text-sm font-bold text-white">{formatarMoeda(resumo.aReceber)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-white/70 font-medium">Receitas recebidas</p>
+                      <p className="text-sm font-bold text-white">{formatarMoeda(resumo.recebido)}</p>
+                    </div>
+                 </div>
+               </div>
+             )}
           </div>
 
           {/* Pager de Mês Mobile */}
-          <div className="bg-[#1C1C1E] rounded-[20px] p-4 flex justify-between items-center mb-6 border border-white/5 shadow-md">
-             <button onClick={prevMonth} className="bg-[#2C2C2E] p-2 rounded-xl text-white">
+          <div className="bg-[#1C1C1E] rounded-2xl p-2.5 flex justify-between items-center mb-3 border border-white/5 shadow-md">
+             <button onClick={prevMonth} className="bg-[#2C2C2E] p-1.5 rounded-xl text-white">
                 <i className="bi bi-chevron-left"></i>
              </button>
              <div className="text-center" onClick={() => setShowCalendar(!showCalendar)}>
@@ -823,14 +842,16 @@ export default function Receitas() {
                 </p>
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">{processedTransactions.length} transações</p>
              </div>
-             <button onClick={nextMonth} className="bg-[#2C2C2E] p-2 rounded-xl text-white">
+             <button onClick={nextMonth} className="bg-[#2C2C2E] p-1.5 rounded-xl text-white">
                 <i className="bi bi-chevron-right"></i>
              </button>
           </div>
 
           {/* Calendário Overlay Mobile */}
           {showCalendar && (
-            <div className="absolute top-[310px] left-5 right-5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50 animate-fade-in">
+            <div
+              className={`absolute left-5 right-5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50 animate-fade-in transition-all duration-300 ${isSummaryExpanded ? "top-[225px]" : "top-[125px]"}`}
+            >
               <div className="flex justify-between items-center mb-4">
                 <button onClick={() => setCurrentYear((y) => y - 1)} className="p-1 px-2 rounded bg-zinc-700 hover:bg-zinc-600 transition"><i className="bi bi-chevron-left"></i></button>
                 <span className="text-lg font-bold">{currentYear}</span>
@@ -847,13 +868,13 @@ export default function Receitas() {
           )}
 
           {/* Busca e Filtros Mobile */}
-          <div className="flex gap-3 mb-4">
+          <div className="flex gap-3 mb-3">
             <div className="relative flex-1">
               <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm"></i>
               <input type="text" placeholder="Buscar receitas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#1C1C1E] border border-white/5 rounded-2xl py-3.5 pl-11 pr-4 text-sm text-white focus:ring-1 focus:ring-[#22C55E] outline-none" />
+                className="w-full bg-[#1C1C1E] border border-white/5 rounded-2xl py-2.5 pl-11 pr-4 text-sm text-white focus:ring-1 focus:ring-[#22C55E] outline-none" />
             </div>
-            <button onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)} className={`p-3.5 rounded-2xl border ${isFilterMenuOpen ? 'bg-[#22C55E] border-[#22C55E] text-white' : 'bg-[#1C1C1E] border-white/5 text-zinc-400'}`}>
+            <button onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)} className={`p-2.5 rounded-2xl border ${isFilterMenuOpen ? 'bg-[#22C55E] border-[#22C55E] text-white' : 'bg-[#1C1C1E] border-white/5 text-zinc-400'}`}>
               <i className="bi bi-filter-right text-xl"></i>
             </button>
           </div>
